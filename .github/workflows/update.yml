@@ -68,7 +68,9 @@ jobs:
           tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
           mkdir -p "$tap_dir/Formula"
           cp Formula/git-rsrs.rb "$tap_dir/Formula/"
-          brew readall --os=all --arch=all nicecab/ci
+          brew readall --os=macos --arch=arm nicecab/ci
+          brew readall --os=macos --arch=intel nicecab/ci
+          brew readall --os=linux --arch=intel nicecab/ci
           brew install --formula nicecab/ci/git-rsrs
           brew test nicecab/ci/git-rsrs
       - name: Commit verified formula update

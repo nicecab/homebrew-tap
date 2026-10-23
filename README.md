@@ -51,5 +51,5 @@ bundle exec ruby test/formula_test.rb
 ruby -c Formula/git-rsrs.rb
 ```
 
-Tap CI also loads the formula through Homebrew's DSL for all OS/architecture
+Tap CI also loads the formula through Homebrew's DSL for the supported OS/architecture
 variants and checks formula style. Actions are pinned to full commit SHAs.
