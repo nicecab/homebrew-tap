@@ -1,0 +1,87 @@
+name: Update git-rsrs
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-git-rsrs
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1
+        with:
+          bundler-cache: true
+      - name: Test updater
+        run: bundle exec ruby test/formula_test.rb
+      - name: Find latest stable release
+        id: release
+        run: |
+          metadata="$RUNNER_TEMP/git-rsrs-release.json"
+          if gh api repos/nicecab/git-rsrs/releases/latest > "$metadata"; then
+            tag=$(ruby -rjson -e 'tag=JSON.parse(File.read(ARGV[0])).fetch("tag_name"); abort "invalid stable release tag" unless /\Av\d+\.\d+\.\d+\z/.match?(tag); puts tag' "$metadata")
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          elif ruby -rjson -e 'exit(JSON.parse(File.read(ARGV[0]))["message"] == "Not Found" ? 0 : 1)' "$metadata"; then
+            gh api repos/nicecab/git-rsrs --silent
+            echo "No published stable release yet; keeping the HEAD formula."
+          else
+            exit 1
+          fi
+      - name: Download release assets
+        if: steps.release.outputs.tag != ''
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release download "$RELEASE_TAG" --repo nicecab/git-rsrs \
+            --pattern '*.tar.gz' --pattern '*.sha256' --dir "$RUNNER_TEMP/git-rsrs-assets"
+      - name: Verify assets and render formula
+        id: formula
+        if: steps.release.outputs.tag != ''
+        run: |
+          ruby scripts/render_formula.rb "$RUNNER_TEMP/git-rsrs-release.json" \
+            "$RUNNER_TEMP/git-rsrs-assets" Formula/git-rsrs.rb
+          ruby -c Formula/git-rsrs.rb
+          if git diff --quiet -- Formula/git-rsrs.rb; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            brew style Formula/git-rsrs.rb
+          fi
+      - name: Install and test the candidate formula
+        if: steps.formula.outputs.changed == 'true'
+        run: |
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          mkdir -p "$tap_dir/Formula"
+          cp Formula/git-rsrs.rb "$tap_dir/Formula/"
+          brew readall --os=all --arch=all nicecab/ci
+          brew install --formula nicecab/ci/git-rsrs
+          brew test nicecab/ci/git-rsrs
+      - name: Commit verified formula update
+        if: steps.formula.outputs.changed == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          git add Formula/git-rsrs.rb
+          if git diff --cached --quiet; then
+            echo "Formula is already current."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Update git-rsrs to $RELEASE_TAG"
+          git push origin HEAD:main
