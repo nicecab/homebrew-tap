@@ -36,8 +36,8 @@ jobs:
           tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
           mkdir -p "$tap_dir/Formula"
           cp Formula/git-rsrs.rb "$tap_dir/Formula/"
-          brew readall --os=macos --arch=arm nicecab/ci
-          brew readall --os=macos --arch=intel nicecab/ci
+          brew readall --os=sequoia --arch=arm nicecab/ci
+          brew readall --os=sequoia --arch=intel nicecab/ci
           brew readall --os=linux --arch=intel nicecab/ci
       - name: Check formula style
         run: brew style Formula/git-rsrs.rb
@@ -46,7 +46,7 @@ jobs:
           generated=$(bundle exec ruby test/render_example.rb "$RUNNER_TEMP/formula-fixture")
           tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
           cp "$generated" "$tap_dir/Formula/git-rsrs.rb"
-          brew readall --os=macos --arch=arm nicecab/ci
-          brew readall --os=macos --arch=intel nicecab/ci
+          brew readall --os=sequoia --arch=arm nicecab/ci
+          brew readall --os=sequoia --arch=intel nicecab/ci
           brew readall --os=linux --arch=intel nicecab/ci
           brew style "$tap_dir/Formula/git-rsrs.rb"
