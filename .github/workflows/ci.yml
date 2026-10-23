@@ -1,0 +1,52 @@
+name: Tap CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tap-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1
+        with:
+          bundler-cache: true
+      - name: Test release verification and formula generation
+        run: bundle exec ruby test/formula_test.rb
+      - name: Check Ruby syntax
+        run: |
+          ruby -c Formula/git-rsrs.rb
+          ruby -c scripts/render_formula.rb
+      - name: Load formula for supported platforms
+        run: |
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          mkdir -p "$tap_dir/Formula"
+          cp Formula/git-rsrs.rb "$tap_dir/Formula/"
+          brew readall --os=sequoia --arch=arm nicecab/ci
+          brew readall --os=sequoia --arch=intel nicecab/ci
+          brew readall --os=linux --arch=intel nicecab/ci
+      - name: Check formula style
+        run: brew style Formula/git-rsrs.rb
+      - name: Load and lint a generated stable formula
+        run: |
+          generated=$(bundle exec ruby test/render_example.rb "$RUNNER_TEMP/formula-fixture")
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          cp "$generated" "$tap_dir/Formula/git-rsrs.rb"
+          brew readall --os=sequoia --arch=arm nicecab/ci
+          brew readall --os=sequoia --arch=intel nicecab/ci
+          brew readall --os=linux --arch=intel nicecab/ci
+          brew style "$tap_dir/Formula/git-rsrs.rb"
