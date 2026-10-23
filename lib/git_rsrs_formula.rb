@@ -54,9 +54,11 @@ module GitRsrsFormula
         end
 
         on_linux do
-          url "https://github.com/#{REPOSITORY}/releases/download/#{tag}/git-rsrs-#{tag}-x86_64-unknown-linux-musl.tar.gz"
-          sha256 "#{hashes.fetch('x86_64-unknown-linux-musl')}"
           depends_on arch: :x86_64
+          on_intel do
+            url "https://github.com/#{REPOSITORY}/releases/download/#{tag}/git-rsrs-#{tag}-x86_64-unknown-linux-musl.tar.gz"
+            sha256 "#{hashes.fetch('x86_64-unknown-linux-musl')}"
+          end
         end
 
         def install
@@ -72,7 +74,7 @@ module GitRsrsFormula
           system "git", "init", "-b", "main", checkout
           system "git", "-C", checkout, "config", "user.name", "Homebrew Test"
           system "git", "-C", checkout, "config", "user.email", "test@example.invalid"
-          system "git", "-C", checkout, "config", "core.hooksPath", "/dev/null"
+          system "git", "-C", checkout, "config", "core.hooksPath", File::NULL
           system "git", "-C", checkout, "remote", "add", "origin", origin
           (checkout/"message.txt").write "initial\\n"
           system "git", "-C", checkout, "add", "-A"
