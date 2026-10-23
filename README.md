@@ -42,7 +42,7 @@ public repositories; re-enable the workflow or run it manually when needed.
 
 ## Development
 
-Ruby version is selected by `.ruby-version`; test dependencies are pinned in
+Ruby 4.0.9 is selected by `.ruby-version`; test dependencies are pinned in
 `Gemfile.lock`.
 
 ```sh
