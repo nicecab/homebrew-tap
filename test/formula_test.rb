@@ -4,24 +4,14 @@ require "digest"
 require "json"
 require "fileutils"
 require_relative "../lib/git_rsrs_formula"
+require_relative "support/release_fixture"
 
 class FormulaTest < Minitest::Test
   TARGETS = %w[aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-musl].freeze
 
   def setup
     @dir = Dir.mktmpdir("formula-test-")
-    @release = { "tag_name" => "v1.2.3", "draft" => false, "prerelease" => false, "assets" => [] }
-    @hashes = {}
-    TARGETS.each do |target|
-      name = "git-rsrs-v1.2.3-#{target}.tar.gz"
-      content = "archive for #{target}\n"
-      @hashes[target] = Digest::SHA256.hexdigest(content)
-      File.binwrite(File.join(@dir, name), content)
-      File.write(File.join(@dir, "#{name}.sha256"), "#{@hashes[target]}  #{name}\n")
-      [name, "#{name}.sha256"].each do |asset|
-        @release["assets"] << { "name" => asset, "browser_download_url" => "https://github.com/nicecab/git-rsrs/releases/download/v1.2.3/#{asset}" }
-      end
-    end
+    @release, @hashes = ReleaseFixture.create(@dir)
   end
 
   def teardown
@@ -90,6 +80,25 @@ class FormulaTest < Minitest::Test
     name = "git-rsrs-v1.2.3-#{TARGETS.first}.tar.gz"
     File.write(File.join(@dir, name), "replacement")
     File.write(File.join(@dir, "#{name}.sha256"), "#{Digest::SHA256.hexdigest('replacement')}  #{name}\n")
+    assert_raises(ArgumentError) { GitRsrsFormula.write(@release, @dir, path) }
+    assert_equal before, File.binread(path)
+  end
+  def test_same_version_cannot_swap_platform_archives
+    path = File.join(@dir, "git-rsrs.rb")
+    GitRsrsFormula.write(@release, @dir, path)
+    before = File.binread(path)
+    intel, linux = TARGETS[1], TARGETS[2]
+    intel_name = "git-rsrs-v1.2.3-#{intel}.tar.gz"
+    linux_name = "git-rsrs-v1.2.3-#{linux}.tar.gz"
+    old_intel = File.binread(File.join(@dir, intel_name))
+    File.binwrite(File.join(@dir, intel_name), File.binread(File.join(@dir, linux_name)))
+    File.binwrite(File.join(@dir, linux_name), old_intel)
+    [intel_name, linux_name].each do |name|
+      File.write(File.join(@dir, "#{name}.sha256"), "#{Digest::SHA256.file(File.join(@dir, name)).hexdigest}  #{name}\n")
+    end
+    @release["assets"].each do |asset|
+      asset["digest"] = "sha256:#{Digest::SHA256.file(File.join(@dir, asset.fetch('name'))).hexdigest}"
+    end
     assert_raises(ArgumentError) { GitRsrsFormula.write(@release, @dir, path) }
     assert_equal before, File.binread(path)
   end

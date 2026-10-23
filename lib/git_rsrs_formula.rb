@@ -95,8 +95,13 @@ module GitRsrsFormula
       new_version = release.fetch("tag_name").delete_prefix("v")
       if old_version
         raise ArgumentError, "refusing a formula downgrade" if Gem::Version.new(new_version) < Gem::Version.new(old_version)
-        if new_version == old_version && previous.scan(/sha256 "([a-f0-9]{64})"/).sort != content.scan(/sha256 "([a-f0-9]{64})"/).sort
-          raise ArgumentError, "published checksums changed without a version increase"
+        if new_version == old_version
+          associations = lambda do |formula|
+            formula.scan(/^\s*url "([^"]+)"\s+sha256 "([a-f0-9]{64})"$/).to_h
+          end
+          unless associations.call(previous) == associations.call(content)
+            raise ArgumentError, "published platform checksums changed without a version increase"
+          end
         end
       end
       return false if previous == content

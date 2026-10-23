@@ -39,3 +39,10 @@ jobs:
           brew readall --os=all --arch=all nicecab/ci
       - name: Check formula style
         run: brew style Formula/git-rsrs.rb
+      - name: Load and lint a generated stable formula
+        run: |
+          generated=$(bundle exec ruby test/render_example.rb "$RUNNER_TEMP/formula-fixture")
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          cp "$generated" "$tap_dir/Formula/git-rsrs.rb"
+          brew readall --os=all --arch=all nicecab/ci
+          brew style "$tap_dir/Formula/git-rsrs.rb"
