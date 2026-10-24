@@ -25,6 +25,7 @@ class FormulaTest < Minitest::Test
       assert_includes content, "git-rsrs-v1.2.3-#{target}.tar.gz"
       assert_includes content, "sha256 \"#{@hashes[target]}\""
     end
+    assert_includes content, '(checkout/"message.txt").write "updated\\n", 0'
     path = File.join(@dir, "formula.rb")
     File.write(path, content)
     assert system(RbConfig.ruby, "-c", path, out: File::NULL, err: File::NULL)

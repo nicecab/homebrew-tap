@@ -81,7 +81,7 @@ module GitRsrsFormula
           system "git", "-C", checkout, "-c", "commit.gpgsign=false", "commit", "-m", "initial"
           system "git", "-C", checkout, "push", "-u", "origin", "main"
           (testpath/"config.toml").write "version = 1\\nbranch = 'main'\\n"
-          (checkout/"message.txt").write "updated\\n"
+          (checkout/"message.txt").write "updated\\n", 0
           system bin/"git-rsrs", "--repo", checkout, "--config", testpath/"config.toml", "sync"
           assert_equal "updated\\n", shell_output("git --git-dir=\#{origin} show main:message.txt")
         end
