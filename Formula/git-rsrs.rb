@@ -1,26 +1,26 @@
 class GitRsrs < Formula
   desc "Synchronize Git repositories with external command hooks"
   homepage "https://github.com/nicecab/git-rsrs"
-  version "0.1.0"
+  version "0.1.1"
 
   depends_on "git"
 
   on_macos do
     on_arm do
-      url "https://github.com/nicecab/git-rsrs/releases/download/v0.1.0/git-rsrs-v0.1.0-aarch64-apple-darwin.tar.gz"
-      sha256 "baad229ea59e08f8902b4d79f9309ac5cdd61026eeb7a41c7137858bc42af845"
+      url "https://github.com/nicecab/git-rsrs/releases/download/v0.1.1/git-rsrs-v0.1.1-aarch64-apple-darwin.tar.gz"
+      sha256 "c699a6f754dccb4b32e4ef336f612c5c47cd901dfc742b3e35faf39f82b1901e"
     end
     on_intel do
-      url "https://github.com/nicecab/git-rsrs/releases/download/v0.1.0/git-rsrs-v0.1.0-x86_64-apple-darwin.tar.gz"
-      sha256 "c5e4d0aa5b2e114c466301168086a74c04344e31cf5818c1cf4afc89e0ad4ab0"
+      url "https://github.com/nicecab/git-rsrs/releases/download/v0.1.1/git-rsrs-v0.1.1-x86_64-apple-darwin.tar.gz"
+      sha256 "96e3814687926177286ee936bdb092491dbabd4d8189e2e1010902640a9f0f7f"
     end
   end
 
   on_linux do
     depends_on arch: :x86_64
     on_intel do
-      url "https://github.com/nicecab/git-rsrs/releases/download/v0.1.0/git-rsrs-v0.1.0-x86_64-unknown-linux-musl.tar.gz"
-      sha256 "d8b50b01074247ac904a76fa1a95355cbb614b8f70d795a54d8f4af0076809ca"
+      url "https://github.com/nicecab/git-rsrs/releases/download/v0.1.1/git-rsrs-v0.1.1-x86_64-unknown-linux-musl.tar.gz"
+      sha256 "f1130db23dddd6ebf38526373c28d507a9ab3c489da6e1c83d0f0a0107c302ef"
     end
   end
 
@@ -30,7 +30,7 @@ class GitRsrs < Formula
   end
 
   test do
-    assert_match "git-rsrs 0.1.0", shell_output("#{bin}/git-rsrs --version")
+    assert_match "git-rsrs 0.1.1", shell_output("#{bin}/git-rsrs --version")
     origin = testpath/"origin.git"
     checkout = testpath/"checkout"
     system "git", "init", "--bare", origin
