@@ -27,10 +27,24 @@ jobs:
           bundler-cache: true
       - name: Test release verification and formula generation
         run: bundle exec ruby test/formula_test.rb
+      - name: Test release verification and cask generation
+        run: bundle exec ruby test/cask_test.rb
       - name: Check Ruby syntax
         run: |
           ruby -c Formula/git-rsrs.rb
           ruby -c scripts/render_formula.rb
+          ruby -c Casks/rsrsbar.rb
+          ruby -c scripts/render_cask.rb
+      - name: Trust the temporary tap
+        # Homebrew 7 skips untrusted third-party taps in `brew readall` (exit 0)
+        # and refuses them in `brew audit`. Older Homebrew has no `brew trust`
+        # and needs none; `brew audit` below fails if the tap is still untrusted.
+        run: |
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          mkdir -p "$tap_dir/Formula" "$tap_dir/Casks"
+          if brew commands | grep -qx trust; then
+            brew trust nicecab/ci
+          fi
       - name: Load formula for supported platforms
         run: |
           tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
@@ -50,3 +64,19 @@ jobs:
           brew readall --os=sequoia --arch=intel nicecab/ci
           brew readall --os=linux --arch=intel nicecab/ci
           brew style "$tap_dir/Formula/git-rsrs.rb"
+      - name: Load, lint and audit the cask
+        # Cask/InstallSteps fires on the legacy flight blocks this cask needs and
+        # cannot be disabled inside a cask; see README, Development.
+        run: |
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          cp Casks/rsrsbar.rb "$tap_dir/Casks/rsrsbar.rb"
+          brew readall --os=sequoia --arch=arm nicecab/ci
+          brew style --except-cops Cask/InstallSteps "$tap_dir/Casks/rsrsbar.rb"
+          brew audit --cask --strict nicecab/ci/rsrsbar
+      - name: Load and lint a generated cask
+        run: |
+          generated=$(bundle exec ruby test/render_cask_example.rb "$RUNNER_TEMP/cask-fixture")
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          cp "$generated" "$tap_dir/Casks/rsrsbar.rb"
+          brew readall --os=sequoia --arch=arm nicecab/ci
+          brew style --except-cops Cask/InstallSteps "$tap_dir/Casks/rsrsbar.rb"
