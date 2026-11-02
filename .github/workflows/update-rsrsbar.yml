@@ -1,0 +1,88 @@
+name: Update rsrsbar
+
+on:
+  schedule:
+    - cron: '47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-rsrsbar
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ruby/setup-ruby@26e5b7d197ebf60545ee9667bcbace0be11ccaec # v1
+        with:
+          bundler-cache: true
+      - name: Test updater
+        run: bundle exec ruby test/cask_test.rb
+      - name: Find latest stable release
+        # The tap already ships a cask rendered from a published release, so a
+        # missing latest release is an anomaly and fails the run.
+        id: release
+        run: |
+          metadata="$RUNNER_TEMP/rsrsbar-release.json"
+          gh api repos/nicecab/rsrsbar/releases/latest > "$metadata"
+          tag=$(ruby -rjson -e 'tag=JSON.parse(File.read(ARGV[0])).fetch("tag_name"); abort "invalid stable release tag" unless /\Av\d+\.\d+\.\d+\z/.match?(tag); puts tag' "$metadata")
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Download release assets
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release download "$RELEASE_TAG" --repo nicecab/rsrsbar \
+            --pattern '*.zip' --pattern '*.sha256' --dir "$RUNNER_TEMP/rsrsbar-assets"
+      - name: Verify assets and render cask
+        id: cask
+        run: |
+          ruby scripts/render_cask.rb "$RUNNER_TEMP/rsrsbar-release.json" \
+            "$RUNNER_TEMP/rsrsbar-assets" Casks/rsrsbar.rb
+          ruby -c Casks/rsrsbar.rb
+          if git diff --quiet -- Casks/rsrsbar.rb; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install and check the candidate cask
+        if: steps.cask.outputs.changed == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          mkdir -p "$tap_dir/Casks"
+          cp Casks/rsrsbar.rb "$tap_dir/Casks/"
+          brew tap nicecab/tap
+          if brew commands | grep -qx trust; then
+            brew trust nicecab/ci nicecab/tap
+          fi
+          brew readall --os=sequoia --arch=arm nicecab/ci
+          brew style --except-cops Cask/InstallSteps "$tap_dir/Casks/rsrsbar.rb"
+          brew audit --cask --strict nicecab/ci/rsrsbar
+          brew install --cask nicecab/ci/rsrsbar
+          [ "$(rsrsbar --version)" = "rsrsbar ${RELEASE_TAG#v}" ]
+      - name: Commit verified cask update
+        if: steps.cask.outputs.changed == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          git add Casks/rsrsbar.rb
+          if git diff --cached --quiet; then
+            echo "Cask is already current."
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Update rsrsbar to $RELEASE_TAG"
+          git push origin HEAD:main

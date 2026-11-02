@@ -1,6 +1,6 @@
 # Nice Cabbage Homebrew tap
 
-Homebrew formulae for Nice Cabbage command-line tools.
+Homebrew formulae and casks for Nice Cabbage tools.
 
 ## git-rsrs
 
@@ -21,6 +21,38 @@ The initial git-rsrs implementation must be merged into its default branch befor
 the HEAD build is available. Stable formula generation uses actual published
 archives and checksums, never placeholder hashes or nonexistent version tags.
 
+## rsrsbar
+
+rsrsbar is the menu bar manager for git-rsrs auto-sync watchers. The cask installs
+the ad-hoc-signed `rsrsbar.app` from the published GitHub release into
+`/Applications` and links the `rsrsbar` command onto `PATH`. It requires macOS 15
+(Sequoia) or later on Apple Silicon and installs `nicecab/tap/git-rsrs` as a
+dependency.
+
+```sh
+brew install --cask nicecab/tap/rsrsbar
+rsrsbar start
+```
+
+Allow notifications when the app asks; watcher failures are reported through them.
+
+Upgrading with `brew upgrade --cask rsrsbar` restarts the app if it was running:
+the outgoing version records whether its launchd job was loaded, and the new
+version's postflight runs `rsrsbar start` only when that record exists. Because
+the app is ad-hoc signed, Homebrew quarantines the download; the cask's postflight
+removes the `com.apple.quarantine` attribute so Gatekeeper lets the app run.
+
+Before uninstalling, run `rsrsbar remove <id>` for each registered repository;
+watchers left behind keep running without anyone to report their failures. Then:
+
+```sh
+brew uninstall --cask rsrsbar
+```
+
+Uninstalling unloads the `com.nicecab.rsrsbar` and `com.nicecab.rsrsbar.heartbeat`
+launchd jobs. Add `--zap` to also remove the app's application support, cache and
+log files.
+
 ## Updates
 
 The `Update git-rsrs` workflow checks the public upstream release hourly. It can
@@ -40,6 +72,16 @@ The updater stays idle until a stable upstream release exists. It does not creat
 upstream tags or releases. GitHub may suspend scheduled workflows in inactive
 public repositories; re-enable the workflow or run it manually when needed.
 
+The `Update rsrsbar` workflow does the same for the cask: it checks the public
+rsrsbar release hourly, downloads the single Apple Silicon archive and its checksum
+file, and verifies the archive against the checksum file and any GitHub-provided
+asset digest. It rejects missing or duplicated assets, additional `.zip` or
+`.sha256` assets (other asset kinds are tolerated), unexpected URLs, unstable
+tags, downgrades and changed checksums for an already published version. Cask
+replacement is atomic.
+Before committing, it installs the candidate cask on macOS and checks that
+`rsrsbar --version` reports the release version.
+
 ## Development
 
 Ruby 4.0.9 is selected by `.ruby-version`; test dependencies are pinned in
@@ -48,8 +90,17 @@ Ruby 4.0.9 is selected by `.ruby-version`; test dependencies are pinned in
 ```sh
 bundle install
 bundle exec ruby test/formula_test.rb
+bundle exec ruby test/cask_test.rb
 ruby -c Formula/git-rsrs.rb
+ruby -c Casks/rsrsbar.rb
 ```
 
 Tap CI also loads the formula through Homebrew's DSL for the supported OS/architecture
 variants and checks formula style. Actions are pinned to full commit SHAs.
+
+For the cask, CI trusts a temporary `nicecab/ci` tap (Homebrew 7 skips untrusted
+taps), loads and audits the cask there, and renders a second cask from the test
+fixture. Style runs as `brew style --except-cops Cask/InstallSteps`: the cask
+needs the legacy `postflight` and `uninstall_preflight` blocks because the
+sandboxed `*_steps` forms cannot run its launchctl probe or `rsrsbar start`, and
+that cop cannot be disabled inside a cask.
