@@ -84,8 +84,9 @@ Before committing, it installs the candidate cask on macOS and checks that
 
 ## Development
 
-Ruby 4.0.9 is selected by `.ruby-version`; test dependencies are pinned in
-`Gemfile.lock`.
+Ruby 4.0.9 is selected by `.ruby-version`; [mise](https://mise.jdx.dev/) reads
+this file when installed and can install the selected version with `mise install`.
+Test dependencies are pinned in `Gemfile.lock`.
 
 ```sh
 bundle install
@@ -96,7 +97,11 @@ ruby -c Casks/rsrsbar.rb
 ```
 
 Tap CI also loads the formula through Homebrew's DSL for the supported OS/architecture
-variants and checks formula style. Actions are pinned to full commit SHAs.
+variants and checks formula style. The Actions lockfile pins workflow dependencies
+to full commit SHAs.
+After changing workflow actions, run `gh actions-lock` using the
+[GitHub CLI extension](https://github.com/github/gh-actions-lock) and commit the
+updated lockfile. CI verifies the lockfile; Renovate maintains dependencies.
 
 For the cask, CI trusts a temporary `nicecab/ci` tap (Homebrew 7 skips untrusted
 taps), loads and audits the cask there, and renders a second cask from the test
