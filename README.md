@@ -21,6 +21,24 @@ The initial git-rsrs implementation must be merged into its default branch befor
 the HEAD build is available. Stable formula generation uses actual published
 archives and checksums, never placeholder hashes or nonexistent version tags.
 
+## jlcat
+
+jlcat is a JSON/JSONL table viewer with auto-flattening and TUI support. Install
+prebuilt macOS arm64/Intel or Linux x86_64 musl binaries with:
+
+```sh
+brew install nicecab/tap/jlcat
+```
+
+jlcat was previously distributed from the `tomoya55/jlcat` tap, which no longer
+receives updates. To switch an existing installation:
+
+```sh
+brew uninstall jlcat
+brew untap tomoya55/jlcat
+brew install nicecab/tap/jlcat
+```
+
 ## rsrsbar
 
 rsrsbar is the menu bar manager for git-rsrs auto-sync watchers. The cask installs
@@ -82,6 +100,12 @@ replacement is atomic.
 Before committing, it installs the candidate cask on macOS and checks that
 `rsrsbar --version` reports the release version.
 
+The `Update jlcat` workflow does the same for the jlcat formula: it checks the
+public jlcat release hourly, verifies the macOS arm64/Intel and Linux x86_64 musl
+archives against their checksum files and any GitHub-provided asset digests, and
+applies the same rejection rules as the git-rsrs updater. It installs and tests the
+generated formula on macOS before committing it.
+
 ## Development
 
 Ruby 4.0.9 is selected by `.ruby-version`; [mise](https://mise.jdx.dev/) reads
@@ -91,8 +115,10 @@ Test dependencies are pinned in `Gemfile.lock`.
 ```sh
 bundle install
 bundle exec ruby test/formula_test.rb
+bundle exec ruby test/jlcat_formula_test.rb
 bundle exec ruby test/cask_test.rb
 ruby -c Formula/git-rsrs.rb
+ruby -c Formula/jlcat.rb
 ruby -c Casks/rsrsbar.rb
 ```
 
