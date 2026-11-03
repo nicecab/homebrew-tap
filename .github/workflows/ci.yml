@@ -27,12 +27,16 @@ jobs:
           bundler-cache: true
       - name: Test release verification and formula generation
         run: bundle exec ruby test/formula_test.rb
+      - name: Test release verification and jlcat formula generation
+        run: bundle exec ruby test/jlcat_formula_test.rb
       - name: Test release verification and cask generation
         run: bundle exec ruby test/cask_test.rb
       - name: Check Ruby syntax
         run: |
           ruby -c Formula/git-rsrs.rb
           ruby -c scripts/render_formula.rb
+          ruby -c Formula/jlcat.rb
+          ruby -c scripts/render_jlcat_formula.rb
           ruby -c Casks/rsrsbar.rb
           ruby -c scripts/render_cask.rb
       - name: Trust the temporary tap
@@ -49,12 +53,12 @@ jobs:
         run: |
           tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
           mkdir -p "$tap_dir/Formula"
-          cp Formula/git-rsrs.rb "$tap_dir/Formula/"
+          cp Formula/git-rsrs.rb Formula/jlcat.rb "$tap_dir/Formula/"
           brew readall --os=sequoia --arch=arm nicecab/ci
           brew readall --os=sequoia --arch=intel nicecab/ci
           brew readall --os=linux --arch=intel nicecab/ci
       - name: Check formula style
-        run: brew style Formula/git-rsrs.rb
+        run: brew style Formula/git-rsrs.rb Formula/jlcat.rb
       - name: Load and lint a generated stable formula
         run: |
           generated=$(bundle exec ruby test/render_example.rb "$RUNNER_TEMP/formula-fixture")
@@ -64,6 +68,15 @@ jobs:
           brew readall --os=sequoia --arch=intel nicecab/ci
           brew readall --os=linux --arch=intel nicecab/ci
           brew style "$tap_dir/Formula/git-rsrs.rb"
+      - name: Load and lint a generated stable jlcat formula
+        run: |
+          generated=$(bundle exec ruby test/render_jlcat_example.rb "$RUNNER_TEMP/jlcat-formula-fixture")
+          tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
+          cp "$generated" "$tap_dir/Formula/jlcat.rb"
+          brew readall --os=sequoia --arch=arm nicecab/ci
+          brew readall --os=sequoia --arch=intel nicecab/ci
+          brew readall --os=linux --arch=intel nicecab/ci
+          brew style "$tap_dir/Formula/jlcat.rb"
       - name: Load, lint and audit the cask
         # Cask/InstallSteps fires on the legacy flight blocks this cask needs and
         # cannot be disabled inside a cask; see README, Development.

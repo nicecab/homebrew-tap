@@ -6,6 +6,9 @@ workflows:
     '.github/workflows/ci.yml':
         - 'actions/checkout@v7.0.1'
         - 'ruby/setup-ruby@v1.334.0'
+    '.github/workflows/update-jlcat.yml':
+        - 'actions/checkout@v7.0.1'
+        - 'ruby/setup-ruby@v1.334.0'
     '.github/workflows/update-rsrsbar.yml':
         - 'actions/checkout@v7.0.1'
         - 'ruby/setup-ruby@v1.334.0'
