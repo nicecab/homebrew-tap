@@ -54,11 +54,12 @@ rsrsbar start
 
 Allow notifications when the app asks; watcher failures are reported through them.
 
-Upgrading with `brew upgrade --cask rsrsbar` restarts the app if it was running:
-the outgoing version records whether its launchd job was loaded, and the new
-version's postflight runs `rsrsbar start` only when that record exists. Because
-the app is ad-hoc signed, Homebrew quarantines the download; the cask's postflight
-removes the `com.apple.quarantine` attribute so Gatekeeper lets the app run.
+Upgrading with `brew upgrade --cask rsrsbar` stops the app, so run `rsrsbar start`
+again afterwards. The cask cannot restart it: its install steps run in Homebrew's
+sandbox, which refuses `launchctl bootstrap` and LaunchServices. Because the app
+is ad-hoc signed, Homebrew quarantines the download; the cask's `preflight_steps`
+removes the `com.apple.quarantine` attribute from the staged app so Gatekeeper
+lets it run.
 
 Before uninstalling, run `rsrsbar remove <id>` for each registered repository;
 watchers left behind keep running without anyone to report their failures. Then:
@@ -131,7 +132,4 @@ updated lockfile. CI verifies the lockfile; Renovate maintains dependencies.
 
 For the cask, CI trusts a temporary `nicecab/ci` tap (Homebrew 7 skips untrusted
 taps), loads and audits the cask there, and renders a second cask from the test
-fixture. Style runs as `brew style --except-cops Cask/InstallSteps`: the cask
-needs the legacy `postflight` and `uninstall_preflight` blocks because the
-sandboxed `*_steps` forms cannot run its launchctl probe or `rsrsbar start`, and
-that cop cannot be disabled inside a cask.
+fixture.

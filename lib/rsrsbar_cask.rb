@@ -51,33 +51,14 @@ module RsrsbarCask
         app "rsrsbar.app"
         binary "\#{appdir}/rsrsbar.app/Contents/MacOS/rsrsbar"
 
-        # Legacy flight blocks, not `*_steps`: steps run in Homebrew's sandbox
-        # (HOME redirected, home unreadable) and their guards test only path
-        # existence, so neither the launchctl probe nor `rsrsbar start` fits there.
-        postflight do
-          # Unsigned (ad-hoc) app from our own tap: Homebrew quarantines the
-          # download, and Gatekeeper would kill the app. Clear it first.
-          system_command("/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "\#{appdir}/rsrsbar.app"])
-          marker = File.expand_path("~/Library/Caches/com.nicecab.rsrsbar/restart-after-upgrade")
-          if File.exist?(marker)
-            system_command("\#{appdir}/rsrsbar.app/Contents/MacOS/rsrsbar", args: ["start"])
-            File.delete(marker)
-          end
-        end
-
-        # On upgrade this runs in the old version's cask, before `uninstall
-        # launchctl:` boots the app out (Homebrew runs that on every upgrade).
-        # It records whether the app was running so postflight can restart it.
-        uninstall_preflight do
-          marker = File.expand_path("~/Library/Caches/com.nicecab.rsrsbar/restart-after-upgrade")
-          FileUtils.rm(marker, force: true)
-          loaded = system_command("/bin/launchctl",
-                                  args:         ["print", "gui/\#{Process.uid}/com.nicecab.rsrsbar"],
-                                  must_succeed: false, print_stderr: false).success?
-          if loaded
-            FileUtils.mkdir_p(File.dirname(marker))
-            File.write(marker, "")
-          end
+        # Unsigned (ad-hoc) app from our own tap: Homebrew quarantines the
+        # download, and Gatekeeper would kill the app. Clear it while the app
+        # is still staged, where the sandboxed steps may write.
+        # Homebrew's sandbox refuses `launchctl bootstrap` and LaunchServices,
+        # so no step can restart the app that `uninstall launchctl:` stops on
+        # every upgrade; the caveats ask for `rsrsbar start` instead.
+        preflight_steps do
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{staged_path}}/rsrsbar.app"]
         end
 
         uninstall launchctl: ["com.nicecab.rsrsbar.heartbeat", "com.nicecab.rsrsbar"]
@@ -93,6 +74,7 @@ module RsrsbarCask
 
         caveats <<~EOS
           Run `rsrsbar start` once to launch the menu bar app, then allow notifications.
+          `brew upgrade` stops the app; run `rsrsbar start` again after each upgrade.
           Before uninstalling, run `rsrsbar remove <id>` for each registered repository;
           watchers left behind keep running without anyone to report their failures.
         EOS
