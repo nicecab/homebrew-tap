@@ -7,7 +7,6 @@ require_relative "support/cask_release_fixture"
 
 class CaskTest < Minitest::Test
   ZIP = "rsrsbar-v1.2.3-aarch64-apple-darwin.zip".freeze
-  MARKER = '~/Library/Caches/com.nicecab.rsrsbar/restart-after-upgrade'.freeze
 
   def setup
     @dir = Dir.mktmpdir("cask-test-")
@@ -126,31 +125,28 @@ class CaskTest < Minitest::Test
     refute_includes lines[0], "*"
   end
 
-  def test_postflight_restarts_only_a_loaded_app
+  def test_quarantine_cleared_on_staged_app_without_legacy_hooks
     content = RsrsbarCask.render(@release, @dir)
-    postflight = content[/^  postflight do\n.*?^  end\n/m]
-    preflight = content[/^  uninstall_preflight do\n.*?^  end\n/m]
-    refute_nil postflight
-    refute_nil preflight
-    assert_operator content.index(postflight), :<, content.index(preflight)
+    # Legacy Ruby flight blocks are deprecated in Homebrew 7 and will be disabled.
+    %w[preflight postflight uninstall_preflight uninstall_postflight].each do |legacy|
+      refute_match(/^\s*#{legacy} do$/, content)
+    end
+    refute_includes content, "system_command"
+    refute_includes content, "restart-after-upgrade"
 
-    # The old version's uninstall_preflight probes the app job and leaves a marker only when it is loaded.
-    assert_includes preflight, 'system_command("/bin/launchctl"'
-    assert_includes preflight, '["print", "gui/#{Process.uid}/com.nicecab.rsrsbar"]'
-    assert_includes preflight, "marker = File.expand_path(\"#{MARKER}\")"
-    assert_match(/\.success\?\n\s+if loaded\n\s+FileUtils\.mkdir_p\(File\.dirname\(marker\)\)\n\s+File\.write\(marker, ""\)\n\s+end/, preflight)
+    # preflight_steps runs before the app is moved out of staging, where the
+    # sandboxed steps can write and macOS App Management does not apply.
+    steps = content[/^  preflight_steps do\n.*?^  end\n/m]
+    refute_nil steps
+    assert_equal ['run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{staged_path}}/rsrsbar.app"]'],
+                 steps.lines[1..-2].map(&:strip).reject { |line| line.empty? || line.start_with?("#") }
+  end
 
-    # postflight: strip quarantine first, start only behind the marker guard, then remove the marker.
-    quarantine = postflight.index('system_command("/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{appdir}/rsrsbar.app"])')
-    guard = postflight.index("if File.exist?(marker)")
-    start = postflight.index('system_command("#{appdir}/rsrsbar.app/Contents/MacOS/rsrsbar", args: ["start"])')
-    refute_nil quarantine
-    refute_nil guard
-    refute_nil start
-    assert_operator quarantine, :<, guard
-    assert_operator guard, :<, start
-    assert_includes postflight, "marker = File.expand_path(\"#{MARKER}\")"
-    assert_match(/if File\.exist\?\(marker\)\n\s+system_command\(.*args: \["start"\]\)\n\s+File\.delete\(marker\)\n\s+end/, postflight)
-    refute_includes postflight, "launchctl"
+  def test_caveats_ask_for_a_start_after_upgrade
+    content = RsrsbarCask.render(@release, @dir)
+    caveats = content[/^  caveats <<~EOS\n.*?^  EOS\n/m]
+    refute_nil caveats
+    assert_includes caveats, "rsrsbar start"
+    assert_match(/brew upgrade/, caveats)
   end
 end

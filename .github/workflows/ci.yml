@@ -78,13 +78,11 @@ jobs:
           brew readall --os=linux --arch=intel nicecab/ci
           brew style "$tap_dir/Formula/jlcat.rb"
       - name: Load, lint and audit the cask
-        # Cask/InstallSteps fires on the legacy flight blocks this cask needs and
-        # cannot be disabled inside a cask; see README, Development.
         run: |
           tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
           cp Casks/rsrsbar.rb "$tap_dir/Casks/rsrsbar.rb"
           brew readall --os=sequoia --arch=arm nicecab/ci
-          brew style --except-cops Cask/InstallSteps "$tap_dir/Casks/rsrsbar.rb"
+          brew style "$tap_dir/Casks/rsrsbar.rb"
           brew audit --cask --strict nicecab/ci/rsrsbar
       - name: Load and lint a generated cask
         run: |
@@ -92,4 +90,4 @@ jobs:
           tap_dir="$(brew --repository)/Library/Taps/nicecab/homebrew-ci"
           cp "$generated" "$tap_dir/Casks/rsrsbar.rb"
           brew readall --os=sequoia --arch=arm nicecab/ci
-          brew style --except-cops Cask/InstallSteps "$tap_dir/Casks/rsrsbar.rb"
+          brew style "$tap_dir/Casks/rsrsbar.rb"

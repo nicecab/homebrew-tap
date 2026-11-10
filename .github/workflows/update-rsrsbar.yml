@@ -68,7 +68,7 @@ jobs:
             brew trust nicecab/ci nicecab/tap
           fi
           brew readall --os=sequoia --arch=arm nicecab/ci
-          brew style --except-cops Cask/InstallSteps "$tap_dir/Casks/rsrsbar.rb"
+          brew style "$tap_dir/Casks/rsrsbar.rb"
           brew audit --cask --strict nicecab/ci/rsrsbar
           brew install --cask nicecab/ci/rsrsbar
           [ "$(rsrsbar --version)" = "rsrsbar ${RELEASE_TAG#v}" ]
